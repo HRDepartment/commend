@@ -5,17 +5,13 @@
 
 var isdigit = /\d/;
 
-var htmlMap = {
+var specialchars = {
   '&': '&amp;',
   '<': '&lt;',
   '>': '&gt;',
   '"': '&quot;',
   "'": '&#039;',
 };
-
-function escapeChar(char) {
-  return htmlMap.hasOwnProperty(char) ? htmlMap[char] : char;
-}
 
 /** @example <https://github.com/caresx/commend#readme> */
 function commend(str, options) {
@@ -196,7 +192,7 @@ function commend(str, options) {
           }
 
           // Regular character (HTML escape)
-          var escaped = escapeChar(chr);
+          var escaped = specialchars[chr] || chr;
           // Emit a literal \ if this character was not a modifier, otherwise just emit the modifier
           // E.g. \* -> *; \\ -> \\; \a -> \a
           emit(escape && !ismod ? '\\' + escaped : escaped);

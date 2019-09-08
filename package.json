@@ -1,7 +1,7 @@
 {
   "name": "commend",
-  "version": "1.0.0",
-  "description": "Tiny Markdown spin-off, better-suited for chats and comments.",
+  "version": "1.0.1",
+  "description": "Fast 1.0kB (gzipped) Markdown spin-off, better-suited for chats and comments. Fully configurable.",
   "main": "index.js",
   "types": "index.d.ts",
   "scripts": {
