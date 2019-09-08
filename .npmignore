@@ -1,0 +1,6 @@
+README.md
+package-lock.json
+.prettierrc
+.gitignore
+.editorconfig
+test/

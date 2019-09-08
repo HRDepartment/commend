@@ -1,0 +1,26 @@
+{
+  "name": "commend",
+  "version": "1.0.0",
+  "description": "Tiny Markdown spin-off, better-suited for chats and comments.",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "scripts": {
+    "test": "npx ava"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/caresx/commend.git"
+  },
+  "keywords": [
+    "markdown"
+  ],
+  "author": "Tycho Kaster",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/caresx/commend/issues"
+  },
+  "homepage": "https://github.com/caresx/commend#readme",
+  "devDependencies": {
+    "ava": "^2.3.0"
+  }
+}
