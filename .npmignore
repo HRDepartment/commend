@@ -3,4 +3,5 @@ package-lock.json
 .prettierrc
 .gitignore
 .editorconfig
+.eslintrc.json
 test/
