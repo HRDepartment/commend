@@ -1,6 +1,6 @@
 {
   "name": "commend",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Tiny Markdown spin-off, better-suited for chats and comments.",
   "main": "index.js",
   "types": "index.d.ts",
@@ -21,6 +21,8 @@
   },
   "homepage": "https://github.com/caresx/commend#readme",
   "devDependencies": {
-    "ava": "^2.3.0"
+    "ava": "^3.15.0",
+    "big-list-of-naughty-strings": "^1.0.0",
+    "xss": "^1.0.8"
   }
 }

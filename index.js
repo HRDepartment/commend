@@ -26,6 +26,8 @@ function commend(str, options) {
   options = options || {};
   // Newline to be used
   var newline = options['\n'];
+  // default: true
+  var continuousquotes = options['>continuous'] !== false;
   // Current character
   var c = 0;
   // Output (stack)
@@ -38,31 +40,26 @@ function commend(str, options) {
   var escape = false;
   // Start of a new line? Start of document counts too
   var linestart = true;
-  // Ordered list current number
-  var olcurrent = 1;
-  // In a list? How many items of the stack are part of this list?
-  var liststack = 0;
+  // Type of list, if not then we're in a list
+  var listtype = ''; // '.' or '-'
+  // Number of items in this list
+  var listitems = 0;
 
   function pushmod(mod) {
-    var islist = mod === '.' || mod === '-';
-    if (islist) {
+    if (islistmod(mod)) {
       // Verify that the list type matches; if not, pop that list (and continue pushing the current one)
-      if (liststack && modifiers[modifiers.length - liststack] !== mod) {
+      if (listtype && listtype !== mod) {
         poplist();
       }
+      listtype = mod;
+      listitems += 1;
     } else if (lastmod === mod) {
       // Matched the previous modifier (e.g. prev modifier * and current modifier * is a ** span)
       popmod();
       return;
-    } else if (liststack && mod === '>') {
-      // Line start non-list modifiers; need to pop an existing list if it exists (liststack)
+    } else if (listtype && mod === '>') {
+      // Start-of-line modifiers (quote) ends the current list; need to pop an existing list if it exists
       poplist();
-    }
-
-    // Push the new modifier on top of the stack and prepare a span
-    if (islist || liststack) {
-      // If in a list, note that we are adding one item to the list stack (which includes the initial - or .)
-      liststack += 1;
     }
 
     modifiers.push((lastmod = mod));
@@ -72,6 +69,7 @@ function commend(str, options) {
   function decoratemod(mod, stack) {
     var decorator = options[mod];
     if (mod === '<>') {
+      // <https://example.com|example text>
       var parts = stack.split('|');
       var href = parts[0];
       var text = parts.length > 1 ? parts.slice(1).join('|') : href;
@@ -82,20 +80,21 @@ function commend(str, options) {
 
   function poplist() {
     var items = [];
-    var listtype = modifiers[modifiers.length - liststack];
-    while (liststack) {
-      if (lastmod === '.' || lastmod === '-') {
-        items.push(popout());
-      } else {
+    while (listitems) {
+      // Pop all modifiers until we reach the list item
+      if (lastmod !== listtype) {
         popmod();
+      } else if (lastmod === listtype) {
+        items.push(popout());
       }
-      liststack -= 1;
+      listitems -= 1;
     }
     // Convert LIFO (stack) to FIFO (list) - without this the order will always be reverse of the input
     items.reverse();
+
     var stack = decoratemod(listtype, items);
     emit(stack);
-    olcurrent = 1;
+    listtype = '';
   }
 
   function popmod() {
@@ -103,10 +102,36 @@ function commend(str, options) {
     emit(stack);
   }
 
+  function popunfinished() {
+    // the first character of the modifier is sufficient except for spoilers (||)
+    // need to escape <
+    var halfmod = lastmod === '||' ? lastmod : escapeChar(lastmod[0]);
+    emit(halfmod + popout());
+  }
+
+  // Remove the current modifier, update lastmod, and return the modifier's value on the stack
   function popout() {
     modifiers.pop();
     lastmod = modifiers.length ? modifiers[modifiers.length - 1] : '';
     return out.pop();
+  }
+
+  function islistmod(mod) {
+    return mod === '.' || mod === '-';
+  }
+
+  // Modifier that affects the entire line
+  function islinemod(mod) {
+    return islistmod(mod) || mod === '>';
+  }
+
+  function canpeek(by) {
+    return str.length > c + by;
+  }
+
+  function peek(by) {
+    // Don't go out of bounds, this causes deoptimizations
+    return canpeek(by) ? str[c + by] : '';
   }
 
   function emit(character) {
@@ -119,62 +144,84 @@ function commend(str, options) {
     var isnewline = chr === '\n';
     var isescape = chr === '\\';
     if (isnewline) {
-      // Pop all existing modifiers when a newline is encountered
+      // Pop all unfinished existing modifiers when a newline is encountered
       // eslint-disable-next-line
-      while (lastmod && lastmod !== '.' && lastmod !== '-') {
+      while (lastmod && !islinemod(lastmod)) {
+        popunfinished();
+      }
+      // Qquotes should be ended on a newline unless continous quotes are enabled and the next line is also a quote
+      if (lastmod === '>' && (!continuousquotes || (canpeek(1) && peek(1) !== '>'))) {
         popmod();
       }
-      if (!liststack) emit(newline);
+      if (!listtype) emit(newline);
     } else if (isescape) {
       // Already escaping. Emit two \
-      if (escape) emit('\\\\');
+      if (escape) {
+        emit('\\\\');
+      }
     } else {
       var linestartmatch = false;
       if (linestart) {
-        if (chr === '-' || chr === '>') {
-          // Ordered list or quote
-          pushmod(chr);
+        if (chr === '-') {
+          // Only become a list if there are more characters on this line
+          if (canpeek(1) && peek(1) !== '\n') {
+            pushmod(chr);
+            linestartmatch = true;
+          }
+        } else if (chr === '>') {
+          // Ordered list or quote, except if continuous quotes is enabled and when we're already in a quote in which case it should be appended
+          if (!continuousquotes || lastmod !== '>') {
+            pushmod(chr);
+          }
+          // Linestartmatch should be enabled for either case (don't show > when continuing quotes)
           linestartmatch = true;
         } else if (isdigit.test(chr)) {
+          // pushmod('.') will close an unordered list but we might still be parsing as if we're in one, so only trust listitems if we're in an ordered list
+          var olcurrent = (listtype === '.' ? listitems : 0) + 1;
           // Unordered list
           // Get the number of digits to parse (1: 1, 10: 2, 1000: 4)
           var digits = Math.floor(Math.log10(olcurrent)) + 1;
           // Must have sufficient remaining characters
           if (str.length - c >= digits) {
-            var digitstr = str.substr(c, digits);
-            var number = Number(digitstr);
+            var number = Number(str.substr(c, digits));
             // If the digits match what we expect + a dot, this is a list
             if (number === olcurrent && str[c + digits] === '.') {
               pushmod('.');
-              olcurrent += 1;
               linestartmatch = true;
-              // Advance by that many digits - 1 (will be incremented below) + 1 (the dot)
+              // Advance by that many (digits - 1) (will be incremented below) + 1 (to compensate for the dot)
+              // this brings c to the dot; c will be incremented one more at the end of the loop body
               c += digits;
             }
           }
         }
 
-        if (!linestartmatch && liststack) {
+        if (!linestartmatch && listtype) {
           // Currently in a list but the next line isn't one; pop it
           poplist();
+          emit(newline);
         }
       }
 
       if (!linestartmatch) {
-        // \- -> -; \> -> >
-        var ismod = chr === '-' || chr === '>';
+        var ismod = false;
         if (
           lastmod !== '<>' &&
-          (chr === '*' ||
-            chr === '_' ||
-            chr === '~' ||
-            (chr === '|' && str[c + 1] === '|'))
+          (chr === '*' || chr === '_' || chr === '~' || (chr === '|' && peek(1) === '|'))
         ) {
           ismod = true;
           if (!escape) {
             if (lastmod === '@') popmod();
             // *, _, ~, ||
-            pushmod(chr + chr);
+            const newmod = chr + chr;
+            // Modifiers with no content should be treated as text
+            // eg ** should become ** and not an empty b tag
+            if (newmod === lastmod && out[out.length - 1] === '') {
+              popout();
+              emit(newmod);
+              if (chr === '|') emit(newmod);
+            } else {
+              pushmod(newmod);
+            }
             // Skip the next | too
             if (chr === '|') {
               c += 1;
@@ -191,8 +238,18 @@ function commend(str, options) {
         }
 
         if (!ismod || escape) {
+          // A space character ends @
           if (lastmod === '@' && chr === ' ') {
             popmod();
+          }
+
+          // - and > at the start of a line can be escaped; the backslash should not be shown
+          if (
+            escape &&
+            (chr === '-' || chr === '>') &&
+            (!canpeek(2) || peek(2) === '\n')
+          ) {
+            escape = false;
           }
 
           // Regular character (HTML escape)
@@ -210,20 +267,26 @@ function commend(str, options) {
   }
 
   // Cleanup if EOF is reached
-  if (liststack) poplist();
-  while (modifiers.length) popmod();
+  if (listtype) poplist();
+  while (lastmod) {
+    if (islinemod(lastmod)) {
+      popmod();
+    } else {
+      popunfinished();
+    }
+  }
 
   return out[0];
 }
 
 function spanDecorator(str) {
-  return function(text) {
+  return function (text) {
     return str + text + str;
   };
 }
 
 function inlineDecorator(str) {
-  return function(text) {
+  return function (text) {
     return str + text;
   };
 }
@@ -235,19 +298,20 @@ var defaults = {
   '||': spanDecorator('||'),
   '@': inlineDecorator('@'),
   '>': inlineDecorator('>'),
-  '<>': function(href, text) {
+  '>continuous': true,
+  '<>': function (href, text) {
     return '&lt;' + href + (text === href ? '' : '|' + text) + '&gt;';
   },
-  '-': function(items) {
+  '-': function (items) {
     return items
-      .map(function(i) {
+      .map(function (i) {
         return '-' + i;
       })
       .join('\n');
   },
-  '.': function(items) {
+  '.': function (items) {
     return items
-      .map(function(i, n) {
+      .map(function (i, n) {
         return n + '.' + i;
       })
       .join('\n');
@@ -255,15 +319,19 @@ var defaults = {
   '\n': '\n',
 };
 
-module.exports = function(options) {
+module.exports = function (options) {
   var opts = {};
-  for (var def in defaults) {
-    opts[def] =
-      typeof options[def] === (def === '\n' ? 'string' : 'function')
-        ? options[def]
-        : defaults[def];
+  if (options) {
+    for (var def in defaults) {
+      opts[def] =
+        typeof options[def] === (def === '\n' ? 'string' : 'function')
+          ? options[def]
+          : defaults[def];
+    }
+  } else {
+    opts = defaults;
   }
-  return function(str) {
+  return function (str) {
     return commend(str, options);
   };
 };
