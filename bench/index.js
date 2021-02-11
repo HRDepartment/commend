@@ -60,7 +60,5 @@ b.suite(
   }),
 
   b.cycle(),
-  b.complete(),
-  b.save({ file: '3texts', folder: 'bench/results', format: 'table.html' }),
-  b.save({ file: '3texts', folder: 'bench/results', format: 'chart.html' })
+  b.complete()
 );
