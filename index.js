@@ -332,6 +332,6 @@ module.exports = function (options) {
     opts = defaults;
   }
   return function (str) {
-    return commend(str, options);
+    return commend(str, opts);
   };
 };

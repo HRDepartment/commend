@@ -2,7 +2,7 @@
 
 Fast 1.1kB (gzipped) Markdown spin-off, better-suited for chats and comments. Fully configurable. Inspired by [mrkdwn](https://api.slack.com/messaging/composing/formatting).
 
-![npm](https://img.shields.io/npm/v/commend)
+![npm](https://badgen.net/npm/v/commend) ![MIT](https://badgen.net/npm/license/commend) ![types](https://badgen.net/npm/types/commend) ![minified](https://badgen.net/bundlephobia/min/commend) ![minzip](https://badgen.net/bundlephobia/minzip/commend)
 
 ## Features
 
@@ -66,6 +66,10 @@ const html = md(msg);
 ```
 
 Of course, because commend is fully configurable, you can always change the meaning of any of the tags or disable them, and change the output (html tags/classes/attributes) at will.
+
+## Benchmark
+
+For fun I've included benchmarks against `commonmark`, `markdown-it`, `marked`, `remarkable`, and `snarkdown`, each run on 3 messages that are also valid commend syntax, all using their default settings. The libraries that do not sanitize their output (which commend does out of the box) also have an additional benchmark using their 'safe' option (commonmark) and/or `xss` (commonmark, marked, snarkdown).
 
 ## License
 

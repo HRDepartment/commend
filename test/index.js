@@ -35,8 +35,8 @@ const options = {
 const md = commend(options);
 const mdUncontinous = commend({ ...options, '>continuous': false });
 
-const LOREM_RAW = `
-*Lorem* _ipsum_ ~dolor~ @sit ||amet||, <https://example.com|consectetur adipiscing elit>. <https://example.com>
+const LOREM = {
+  [`*Lorem* _ipsum_ ~dolor~ @sit ||amet||, <https://example.com|consectetur adipiscing elit>. <https://example.com>
 
 - Donec vestibulum tristique augue,
 - sodales convallis lectus mattis sed.
@@ -50,18 +50,37 @@ const LOREM_RAW = `
 > ut mauris quis vulputate.
 
 6. ~_*Aenean molestie sit amet*_~
-\\*ex nec pellentesque.\\*
-`.trim();
-const LOREM_RES = `<b>Lorem</b> <i>ipsum</i> <s>dolor</s> <a href="/u/sit">@sit</a> <span class="spoiler">amet</span>, <a href="https://example.com" rel="nofollow noreferrer noopener">consectetur adipiscing elit</a>. <a href="https://example.com" rel="nofollow noreferrer noopener">https://example.com</a><br>
+\\*ex nec pellentesque.\\*`]: `<b>Lorem</b> <i>ipsum</i> <s>dolor</s> <a href="/u/sit">@sit</a> <span class="spoiler">amet</span>, <a href="https://example.com" rel="nofollow noreferrer noopener">consectetur adipiscing elit</a>. <a href="https://example.com" rel="nofollow noreferrer noopener">https://example.com</a><br>
 <br>
 <ul><li> Donec vestibulum tristique augue,<li> sodales convallis lectus mattis sed.<li> Mauris vel elementum nisl.</ul><ol><li> Morbi hendrerit diam lorem,<li> a sagittis nunc viverra vel.<li> Fusce ligula felis, tincidunt nec lacinia ac, luctus vel turpis.</ol><blockquote> Phasellus tristique<br>
  ut mauris quis vulputate.</blockquote><br>
 <br>
 6. <s><i><b>Aenean molestie sit amet</b></i></s><br>
-*ex nec pellentesque.*`;
+*ex nec pellentesque.*`,
+  [`Lorem _ipsum_ dolor sit amet, _consectetur adipiscing_ *el*it.
 
-test('Options', (t) => {
-  t.is(md(LOREM_RAW), LOREM_RES);
+1. Proin id massa ut dui sollicitudin *consectetur* eget vitae turpis.
+2. Praesent <example.com|scelerisque> auctor tempor.
+
+Viv_amus _fringilla _aliquam risus vitae_ ultricies.
+
+- Duis et rhoncus mauris, id elementum urna. <img src=x onerror=alert(0)>
+
+*Pellentesque habitant *morb*i tristique senectus et* netus et malesuada _fames_ ac turpis egestas.
+> Nunc lobortis justo et ligula pulvinar _donec_.`]: `Lorem <i>ipsum</i> dolor sit amet, <i>consectetur adipiscing</i> <b>el</b>it.<br>
+<br>
+<ol><li> Proin id massa ut dui sollicitudin <b>consectetur</b> eget vitae turpis.<li> Praesent &lt;example.com&gt; auctor tempor.</ol><br>
+Viv<i>amus </i>fringilla <i>aliquam risus vitae</i> ultricies.<br>
+<br>
+<ul><li> Duis et rhoncus mauris, id elementum urna. &lt;img src=x onerror=alert(0)&gt;</ul><br>
+<b>Pellentesque habitant </b>morb<b>i tristique senectus et</b> netus et malesuada <i>fames</i> ac turpis egestas.<br>
+<blockquote> Nunc lobortis justo et ligula pulvinar <i>donec</i>.</blockquote>`,
+};
+
+test('Full example', (t) => {
+  for (const lorem in LOREM) {
+    t.is(md(lorem), LOREM[lorem]);
+  }
 });
 
 test('XSS', (t) => {
