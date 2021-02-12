@@ -76,42 +76,37 @@ Of course, because commend's output is fully configurable, you can always change
 
 ## Benchmark
 
-For fun I've included benchmarks against `commonmark`, `markdown-it`, `marked`, `remarkable`, and `snarkdown`, each run on 3 messages that are also valid commend syntax, all using their default settings. The libraries that do not sanitize their output (which commend does out of the box) also have an additional benchmark using their 'safe' option (commonmark) or `xss` (marked, snarkdown). This benchmark only tests the throughput of the parser, excluding the time taken to initialize the library's parser.
+For fun I've included benchmarks against `commonmark`, `markdown-it`, `marked`, `remarkable`, and `snarkdown`, each run on 3 messages that are also valid commend syntax, all using their default settings. The libraries that do not sanitize their output (which commend does out of the box) also have an additional benchmark using `xss` (marked, snarkdown). `commonmark` is unsafe by default, but the `safe` option is actually faster so it's enabled in the benchmark. This benchmark only tests the throughput of the parser, excluding the time taken to initialize the library's parser.
 
 On node v15.8.0, Linux 5.8.0, AMD Ryzen 7 2700X @ 4.00 GHz:
 
 ```
-  commend v1.1.0:
-    35 312 ops/s, ±1.32%   | fastest
-
-  commonmark v0.29.3 [unsafe]:
-    22 148 ops/s, ±0.89%   | 37.28% slower
+Running "Chat (200 messages, 22200 chars) converted to HTML" suite...
+  commend v1.2.0:
+    2 742 ops/s, ±1.21%   | fastest
 
   commonmark v0.29.3 ('safe' option):
-    22 471 ops/s, ±0.81%   | 36.36% slower
-
-  commonmark v0.29.3 (+ xss):
-    12 518 ops/s, ±0.18%   | 64.55% slower
+    911 ops/s, ±1.18%     | 66.78% slower
 
   markdown-it v12.0.4:
-    24 501 ops/s, ±0.16%   | 30.62% slower
+    989 ops/s, ±0.87%     | 63.93% slower
 
   marked v2.0.0 [unsafe]:
-    12 004 ops/s, ±0.31%   | 66.01% slower
+    506 ops/s, ±3.36%     | 81.55% slower
 
   marked v2.0.0 (+ xss):
-    8 174 ops/s, ±0.31%    | slowest, 76.85% slower
+    361 ops/s, ±0.43%     | slowest, 86.83% slower
 
   remarkable v2.0.1:
-    31 402 ops/s, ±0.58%   | 11.07% slower
+    1 272 ops/s, ±0.74%   | 53.61% slower
 
   snarkdown v2.0.0 [unsafe]:
-    29 613 ops/s, ±0.58%   | 16.14% slower
+    1 536 ops/s, ±1.06%   | 43.98% slower
 
   snarkdown v2.0.0 (+ xss):
-    14 815 ops/s, ±1.50%   | 58.05% slower
+    877 ops/s, ±0.88%     | 68.02% slower
 
-Finished 10 cases!
+Finished 8 cases!
   Fastest: commend v1.1.0
   Slowest: marked v2.0.0 (+ xss)
 ```

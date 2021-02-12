@@ -22,17 +22,13 @@ for (let i = 0; i < 10; i += 1) {
 }
 
 b.suite(
-  `Chat (${texts.length} lines, ${texts.reduce(
+  `Chat (${texts.length} messages, ${texts.reduce(
     (len, t) => len + t.length,
     0
   )} chars) converted to HTML`,
 
   b.add(`commend v${pkgvs.version}`, () => {
     texts.forEach(md);
-  }),
-
-  b.add(`commonmark v${pkgv('commonmark')} [unsafe]`, () => {
-    texts.forEach((t) => cmWriter.render(cmReader.parse(t)));
   }),
 
   b.add(`commonmark v${pkgv('commonmark')} ('safe' option)`, () => {
