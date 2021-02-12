@@ -107,6 +107,6 @@ Running "Chat (200 messages, 22200 chars) converted to HTML" suite...
     877 ops/s, ±0.88%     | 68.02% slower
 
 Finished 8 cases!
-  Fastest: commend v1.1.0
+  Fastest: commend v1.2.0
   Slowest: marked v2.0.0 (+ xss)
 ```
