@@ -12,7 +12,7 @@ Tiny & fast Markdown spin-off, better-suited for chats and comments. Fully confi
 - \- Text (Unordered list - at the start of a line, and thus only one layer deep)
 - \1. Text (Ordered list - at the start of a line, with consecutive numbers starting at 1, only one layer deep)
 - ||Text|| (Spoiler)
-- \<https://example.com|Text\> (Links)
+- \<https://example.com|Text> (Links)
 - @Text (Mention - ended by a space)
 - \> Quotes
 - nl2br
