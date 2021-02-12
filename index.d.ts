@@ -22,6 +22,11 @@ export interface CommendOptions {
   '>continuous'?: boolean;
   /** Mention */
   '@'?(text: string): string;
+  /**
+   * Whether to stop parsing the current mention (this character won't be included)
+   * @param parsed Accumulated mention text
+   */
+  '@end'?(char: string, parsed: text): boolean;
   /** Newline replacement */
   '\n'?: string;
 }

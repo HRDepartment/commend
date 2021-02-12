@@ -20,20 +20,10 @@ const options = {
         `&lt;${href}&gt;`,
   '@': (text) => `<a href="/u/${text}">@${text}</a>`,
   '>': (text) => `<blockquote>${text}</blockquote>`,
-  // Should a quote be continuous?
-  // >> Line 1
-  // >> Line 2
-  // would be part of the same blockquote in this case, with a <br> newline.
-  // If set to false, a new line will end the current quote. This is more desirable for greentexting.
-  // Defaults to true.
-  '>continuous': true,
   '\n': '<br>\n',
-  // You can return '' to hide the text, or not specify the option to not perform that transform
-  // E.g. if you don't specify -, it will render as the user typed it.
 };
 
 const md = commend(options);
-const mdUncontinous = commend({ ...options, '>continuous': false });
 
 const LOREM = {
   [`*Lorem* _ipsum_ ~dolor~ @sit ||amet||, <https://example.com|consectetur adipiscing elit>. <https://example.com>
@@ -101,7 +91,7 @@ test('Single characters', (t) => {
   t.is(md('||'), '||');
   t.is(md('<stuff'), '&lt;stuff');
   t.is(md('@'), '@');
-  t.is(md('>'), '<blockquote></blockquote>');
+  t.is(md('>'), '&gt;');
   t.is(md('-'), '-');
   t.is(md('1.'), '<ol><li></ol>');
 });
@@ -111,6 +101,15 @@ test('Unfinished modifiers across lines', (t) => {
   t.is(md('10 < 20\nnewline'), '10 &lt; 20<br>\nnewline');
   t.is(md('10 || 20\nnewline'), '10 || 20<br>\nnewline');
   t.is(md('10 || 20 **\nnewline'), '10 || 20 **<br>\nnewline');
+});
+
+test('Mentions', (t) => {
+  t.is(md(`@mention`), '<a href="/u/mention">@mention</a>');
+  t.is(md(`@mention Text`), '<a href="/u/mention">@mention</a> Text');
+  t.is(md(`@mention\ntext`), '<a href="/u/mention">@mention</a><br>\ntext');
+  t.is(md(`@m*ention`), '<a href="/u/m">@m</a>*ention');
+  t.is(md(`@m*ention*`), '<a href="/u/m">@m</a><b>ention</b>');
+  t.is(md(`*@mention*`), '<b><a href="/u/mention">@mention</a></b>');
 });
 
 test('List edge cases', (t) => {
@@ -128,7 +127,7 @@ test('List edge cases', (t) => {
 });
 
 test('Escape character', (t) => {
-  t.is(md('\\'), '');
+  t.is(md('\\'), '\\');
   t.is(md('\\\\'), '\\\\');
   t.is(md('\\a'), '\\a');
   t.is(md('\\-'), '-');
@@ -145,10 +144,47 @@ test('Empty content implicit escape', (t) => {
 });
 
 test('Uncontinous quotes', (t) => {
+  const mdUncontinous = commend({ ...options, '>continuous': false });
   t.is(mdUncontinous(`>test`), '<blockquote>test</blockquote>');
   t.is(
     mdUncontinous(`>test\n>test2`),
     '<blockquote>test</blockquote><br>\n<blockquote>test2</blockquote>'
   );
   t.is(mdUncontinous(`>test\nnormal`), '<blockquote>test</blockquote><br>\nnormal');
+});
+
+test.cb('@end', (t) => {
+  let atendargs = [];
+  const mdAtend = commend({
+    ...options,
+    '@end': (...args) => {
+      atendargs.push(args);
+      return args[0] === ' ' || args[0] === '`';
+    },
+  });
+  mdAtend('@Example text');
+  t.deepEqual(atendargs, [
+    ['E', ''],
+    ['x', 'E'],
+    ['a', 'Ex'],
+    ['m', 'Exa'],
+    ['p', 'Exam'],
+    ['l', 'Examp'],
+    ['e', 'Exampl'],
+    [' ', 'Example'],
+  ]);
+  atendargs = [];
+  mdAtend('@Example`end');
+  t.deepEqual(atendargs, [
+    ['E', ''],
+    ['x', 'E'],
+    ['a', 'Ex'],
+    ['m', 'Exa'],
+    ['p', 'Exam'],
+    ['l', 'Examp'],
+    ['e', 'Exampl'],
+    ['`', 'Example'],
+  ]);
+  atendargs = [];
+  t.end();
 });

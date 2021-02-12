@@ -3,31 +3,31 @@
 
 'use strict';
 
-var isdigit = /\d/;
+// Characters that are interpreted differently: html characters, all modifiers, newlines, escapes, lists (digits / - at the start of a line)
+var specialchars = /[\n\\<>*_~\|<>@>]|^((\d\.)|-)/gm;
 
-var htmlMap = {
-  '&': '&amp;',
-  '<': '&lt;',
-  '>': '&gt;',
-  '"': '&quot;',
-  "'": '&#039;',
-};
+var isdigit = /\d/;
+var replacechars = /[&"'\r]/g;
+var replacements = { '&': '&amp;', '"': '&quot;', "'": '&#039;', '\r': '' };
 
 function escapeChar(char) {
-  return htmlMap.hasOwnProperty(char) ? htmlMap[char] : char;
+  return char === '<' ? '&lt;' : char === '>' ? '&gt;' : char;
 }
 
 /** @example <https://github.com/caresx/commend#readme> */
 function commend(str, options) {
-  if (typeof str !== 'string') {
-    str = '' + str;
-  }
+  if (!str) return '';
 
-  options = options || {};
+  // Sanitize
+  str = str.replace(replacechars, function (val) {
+    return replacements[val];
+  });
+
   // Newline to be used
   var newline = options['\n'];
   // default: true
   var continuousquotes = options['>continuous'] !== false;
+  var mentionend = options['@end'];
   // Current character
   var c = 0;
   // Output (stack)
@@ -44,6 +44,8 @@ function commend(str, options) {
   var listtype = ''; // '.' or '-'
   // Number of items in this list
   var listitems = 0;
+  var strlen = str.length;
+  var isfirstline = true;
 
   function pushmod(mod) {
     if (islistmod(mod)) {
@@ -122,11 +124,11 @@ function commend(str, options) {
 
   // Modifier that affects the entire line
   function islinemod(mod) {
-    return islistmod(mod) || mod === '>';
+    return islistmod(mod) || mod === '>' || mod === '@';
   }
 
   function canpeek(by) {
-    return str.length > c + by;
+    return strlen > c + by;
   }
 
   function peek(by) {
@@ -138,19 +140,66 @@ function commend(str, options) {
     out[out.length - 1] += character;
   }
 
-  while (c < str.length) {
+  function currentoutput() {
+    return out[out.length - 1];
+  }
+
+  function shouldescape(chr) {
+    if (escape) {
+      // - and > at the start of a line can be escaped; the backslash should not be shownif (
+      if ((chr === '-' || chr === '>') && (!canpeek(2) || peek(2) === '\n')) {
+        return false;
+      }
+      return true;
+    }
+    return false;
+  }
+
+  // Emit characters until a special character is found
+  function advancechars() {
+    // Parse one-by-one when in mention mode
+    if (lastmod === '@' && c < strlen) return true;
+    specialchars.lastIndex = c;
+    var specialmatch = specialchars.exec(str);
+    var start = c;
+    var end = specialmatch ? specialmatch.index : strlen;
+    if (end !== start) {
+      escape = shouldescape(str[start]);
+      if (escape) {
+        emit('\\');
+        escape = false;
+      }
+      if (linestart && listtype) {
+        poplist();
+        if (!isfirstline) {
+          // Because we don't emit newlines while still in list mode
+          emit(newline);
+        }
+      }
+      emit(str.substring(start, end));
+      c = end;
+    }
+    return !!specialmatch;
+  }
+
+  while (advancechars()) {
     var chr = str[c];
 
     var isnewline = chr === '\n';
     var isescape = chr === '\\';
     if (isnewline) {
+      isfirstline = false;
       // Pop all unfinished existing modifiers when a newline is encountered
       // eslint-disable-next-line
       while (lastmod && !islinemod(lastmod)) {
         popunfinished();
       }
-      // Qquotes should be ended on a newline unless continous quotes are enabled and the next line is also a quote
-      if (lastmod === '>' && (!continuousquotes || (canpeek(1) && peek(1) !== '>'))) {
+      // Mentions should always be ended on a new line
+      // Quotes should be ended on a newline unless continous quotes are enabled and the next line is also a quote
+      if (
+        lastmod === '@' ||
+        (lastmod === '>' && (!continuousquotes || (canpeek(1) && peek(1) !== '>')))
+      ) {
         popmod();
       }
       if (!listtype) emit(newline);
@@ -182,7 +231,7 @@ function commend(str, options) {
           // Get the number of digits to parse (1: 1, 10: 2, 1000: 4)
           var digits = Math.floor(Math.log10(olcurrent)) + 1;
           // Must have sufficient remaining characters
-          if (str.length - c >= digits) {
+          if (strlen - c >= digits) {
             var number = Number(str.substr(c, digits));
             // If the digits match what we expect + a dot, this is a list
             if (number === olcurrent && str[c + digits] === '.') {
@@ -215,7 +264,7 @@ function commend(str, options) {
             const newmod = chr + chr;
             // Modifiers with no content should be treated as text
             // eg ** should become ** and not an empty b tag
-            if (newmod === lastmod && out[out.length - 1] === '') {
+            if (newmod === lastmod && !currentoutput()) {
               popout();
               emit(newmod);
               if (chr === '|') emit(newmod);
@@ -238,19 +287,12 @@ function commend(str, options) {
         }
 
         if (!ismod || escape) {
-          // A space character ends @
-          if (lastmod === '@' && chr === ' ') {
+          // Test whether we should end the current mention. Pass the current char and the text belonging to the mention as currently parsed
+          if (lastmod === '@' && mentionend(chr, currentoutput())) {
             popmod();
           }
 
-          // - and > at the start of a line can be escaped; the backslash should not be shown
-          if (
-            escape &&
-            (chr === '-' || chr === '>') &&
-            (!canpeek(2) || peek(2) === '\n')
-          ) {
-            escape = false;
-          }
+          escape = shouldescape(chr);
 
           // Regular character (HTML escape)
           var escaped = escapeChar(chr);
@@ -262,19 +304,20 @@ function commend(str, options) {
     }
 
     c += 1;
-    escape = isescape;
+    escape = isescape && !escape; // if escape was already true, we have emitted '\\\\' above
     linestart = isnewline;
   }
 
   // Cleanup if EOF is reached
   if (listtype) poplist();
   while (lastmod) {
-    if (islinemod(lastmod)) {
+    if (islinemod(lastmod) && currentoutput()) {
       popmod();
     } else {
       popunfinished();
     }
   }
+  if (escape) emit('\\');
 
   return out[0];
 }
@@ -297,6 +340,9 @@ var defaults = {
   '~~': spanDecorator('~'),
   '||': spanDecorator('||'),
   '@': inlineDecorator('@'),
+  '@end': function (char) {
+    return char === ' ';
+  },
   '>': inlineDecorator('>'),
   '>continuous': true,
   '<>': function (href, text) {
@@ -324,14 +370,15 @@ module.exports = function (options) {
   if (options) {
     for (var def in defaults) {
       opts[def] =
-        typeof options[def] === (def === '\n' ? 'string' : 'function')
-          ? options[def]
-          : defaults[def];
+        typeof options[def] === typeof defaults[def] ? options[def] : defaults[def];
     }
   } else {
     opts = defaults;
   }
   return function (str) {
+    if (typeof str !== 'string') {
+      str = '' + str;
+    }
     return commend(str, opts);
   };
 };

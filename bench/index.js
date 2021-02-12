@@ -15,10 +15,17 @@ function pkgv(pkg) {
   return pkgvs.dependencies[pkg].version;
 }
 
-const texts = require('./3texts.json');
+const sourceTexts = require('./texts.json');
+let texts = [];
+for (let i = 0; i < 10; i += 1) {
+  texts = texts.concat(sourceTexts);
+}
 
 b.suite(
-  '3 texts converted to HTML',
+  `Chat (${texts.length} lines, ${texts.reduce(
+    (len, t) => len + t.length,
+    0
+  )} chars) converted to HTML`,
 
   b.add(`commend v${pkgvs.version}`, () => {
     texts.forEach(md);
@@ -30,10 +37,6 @@ b.suite(
 
   b.add(`commonmark v${pkgv('commonmark')} ('safe' option)`, () => {
     texts.forEach((t) => cmWriter.render(cmReader.parse(t), { safe: true }));
-  }),
-
-  b.add(`commonmark v${pkgv('commonmark')} (+ xss)`, () => {
-    texts.forEach((t) => xss(cmWriter.render(cmReader.parse(t))));
   }),
 
   b.add(`markdown-it v${pkgv('markdown-it')}`, () => {

@@ -1,6 +1,6 @@
 # commend
 
-Fast 1.1kB (gzipped) Markdown spin-off, better-suited for chats and comments. Fully configurable. Inspired by [mrkdwn](https://api.slack.com/messaging/composing/formatting).
+Tiny & fast Markdown spin-off, better-suited for chats and comments. Fully configurable. Inspired by [mrkdwn](https://api.slack.com/messaging/composing/formatting).
 
 ![npm](https://badgen.net/npm/v/commend) ![MIT](https://badgen.net/npm/license/commend) ![types](https://badgen.net/npm/types/commend) ![minified](https://badgen.net/bundlephobia/min/commend) ![minzip](https://badgen.net/bundlephobia/minzip/commend)
 
@@ -19,7 +19,7 @@ Fast 1.1kB (gzipped) Markdown spin-off, better-suited for chats and comments. Fu
 - \\ serves as an escape for \*, \_, ~, <, |, @, -, or >
 - Input is HTML-escaped
 
-If you need to linkify, it's recommended you do that separately beforehand by converting to the \<bracket\> syntax. Normalizing newlines, spaces, etc. is also recommended if you are parsing user-content.
+If you need to linkify, it's recommended you do that separately beforehand by converting to the \<bracket\> syntax.
 
 Check out [remarkable](https://github.com/jonschlinkert/remarkable) if you need a fully-featured Markdown parser, or [Snarkdown](https://github.com/developit/snarkdown) if you want a minimal one. commend is opinionated towards (short) messages (no tables or complicated link syntax) where non-technical (no code blocks) users can bring their point across with equal emphasis (no headings). Lists and quotes are included as they're essential for comment threads.
 
@@ -34,18 +34,17 @@ const options = {
   '**': (text) => `<b>${text}</b>`,
   __: (text) => `<i>${text}</i>`,
   '~~': (text) => `<s>${text}</s>`,
-  '-': (items) => `<ul>${items.map((i) => `<li>${i}`).join('')}</ul>`,
-  '.': (items) => `<ol>${items.map((i) => `<li>${i}`).join('')}</ol>`,
   // Can be implemented with css:
   // .spoiler { background-color: #000; color: #000; } .spoiler:hover { color: #fff; }
   '||': (text) => `<span class="spoiler">${text}</span>`,
-  '<>': (href, text) =>
-    // Text defaults to the href if the | part (<link|text>) is not specified
-    href.startsWith('http')
-      ? `<a href="${href}" rel="nofollow noreferrer noopener">${text}</a>`
-      : // Literal < and > characters.
-        `&lt;${href}&gt;`,
   '@': (text) => `<a href="/u/${text}">@${text}</a>`,
+  // This function is called for every character after the @, in order to determine when to stop parsing mentions,
+  // when it returns true. Newlines and other modifiers (such as *) always end the mention as well.
+  // In this case, a newline ends the mention. You might want other characters to also end mentions, such as dots,
+  // or if you want to potentially support spaces in mentions based on a list of valid mentions,
+  // you can use the second argument, which is the full currently parsed mention text,
+  // e.g. for @example, ['e', ''], ['x', 'e'], ['a', 'ex'], ...
+  '@end': (char, mention) => char === ' ',
   '>': (text) => `<blockquote>${text}</blockquote>`,
   // Should a quote be continuous?
   // >> Line 1
@@ -54,6 +53,14 @@ const options = {
   // If set to false, a new line will end the current quote. This is more desirable for greentexting.
   // Defaults to true.
   '>continuous': true,
+  '<>': (href, text) =>
+    // Text defaults to the href if the | part (<link|text>) is not specified
+    href.startsWith('http')
+      ? `<a href="${href}" rel="nofollow noreferrer noopener">${text}</a>`
+      : // Literal < and > characters.
+        `&lt;${href}&gt;`,
+  '-': (items) => `<ul>${items.map((i) => `<li>${i}`).join('')}</ul>`,
+  '.': (items) => `<ol>${items.map((i) => `<li>${i}`).join('')}</ol>`,
   '\n': '<br>\n',
   // You can return '' to hide the text, or not specify the option to not perform that transform
   // E.g. if you don't specify -, it will render as the user typed it.
@@ -65,11 +72,13 @@ const html = md(msg);
 // -> <b>Hello World</b>!
 ```
 
-Of course, because commend is fully configurable, you can always change the meaning of any of the tags or disable them, and change the output (html tags/classes/attributes) at will.
+Of course, because commend's output is fully configurable, you can always change the meaning of any of the tags or disable them, and change the output (html tags/classes/attributes) at will.
 
 ## Benchmark
 
-For fun I've included benchmarks against `commonmark`, `markdown-it`, `marked`, `remarkable`, and `snarkdown`, each run on 3 messages that are also valid commend syntax, all using their default settings. The libraries that do not sanitize their output (which commend does out of the box) also have an additional benchmark using their 'safe' option (commonmark) and/or `xss` (commonmark, marked, snarkdown).
+For fun I've included benchmarks against `commonmark`, `markdown-it`, `marked`, `remarkable`, and `snarkdown`, each run on 3 messages that are also valid commend syntax, all using their default settings. The libraries that do not sanitize their output (which commend does out of the box) also have an additional benchmark using their 'safe' option (commonmark) or `xss` (marked, snarkdown). This benchmark only tests the throughput of the parser, excluding the time taken to initialize the library's parser.
+
+On node v15.8.0, Linux 5.8.0, AMD Ryzen 7 2700X @ 4.00 GHz:
 
 ```
   commend v1.1.0:
