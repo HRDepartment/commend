@@ -26,7 +26,7 @@
     "big-list-of-naughty-strings": "^1.0.0",
     "commonmark": "^0.29.3",
     "markdown-it": "^12.0.4",
-    "marked": "^2.0.0",
+    "marked": "^4.0.10",
     "remarkable": "^2.0.1",
     "snarkdown": "^2.0.0",
     "xss": "^1.0.8"
